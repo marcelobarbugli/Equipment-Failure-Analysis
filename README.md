@@ -1,18 +1,26 @@
 # Equipment-Failure-Analysis
-Developed by Marcelo Dozzi Barbugli
-Dataset: csv, parquet, txt
-
+* Developed by Marcelo Dozzi Barbugli
+* Dataset: csv, parquet, txt
+* Function and Job: Data Analysis and Data Transformation
+* Notes: Notes table
 __________________________________________________________________
 
 
-## ** Equipment Failure Analysis **
-Pyspark Notebook to supply information within:
+### Equipment Failure Analysis Description
+Pyspark Notebook to supply information within these questions:
 * Total equipment failures that happened?
 * Which equipment name had most failures?
 * Average amount of failures across equipment group, ordered by the number of failures in ascending order?
 * Rank the sensors which present the most number of errors by equipment name in an equipment group.
 
-#### notes:
+### Dataset
+* You can find the dataset when Fork or Clone this repository
+* Files: “equipment_failure_sensors.txt”; “equipment_sensors.csv”; “equipment.json”
+
+### Function and Job
+* TODO
+
+### notes:
 | information | data | notes |
 |-------------|:-----------:|------------:|
 | Dataset | 'equipment_sensors.csv', 'equipment.parquet' and 'equpment_failure_sensors.txt' | None |
