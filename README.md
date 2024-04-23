@@ -24,3 +24,4 @@ Pyspark Notebook to supply information within these questions:
 | information | data | notes |
 |-------------|:-----------:|------------:|
 | Dataset | 'equipment_sensors.csv', 'equipment.parquet' and 'equpment_failure_sensors.txt' | None |
+| Improvements | 1. OOP development; 2. improve validations of each step; 3. bugfix | None |  
