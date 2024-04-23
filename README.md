@@ -18,10 +18,10 @@ Pyspark Notebook to supply information within these questions:
 * Files: “equipment_failure_sensors.txt”; “equipment_sensors.csv”; “equipment.json”
 
 ### Function and Job
-* TODO
+* TODO documentation
 
 ### notes:
 | information | data | notes |
 |-------------|:-----------:|------------:|
 | Dataset | 'equipment_sensors.csv', 'equipment.parquet' and 'equpment_failure_sensors.txt' | None |
-| Improvements | 1. OOP development; 2. improve validations of each step; 3. bugfix | None |  
+| Improvements | v2 expects improvement for better performance | 1. OOP development; 2. improve validations of each step and cache; 3. bugfix |
