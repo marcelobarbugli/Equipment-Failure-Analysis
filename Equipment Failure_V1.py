@@ -87,12 +87,11 @@ df_logs_alias = df_logs.alias("logs")
 df_sensors_alias = df_sensors.alias("sensors")
 df_equipment_alias = df_equipment.alias("equipment")
 
-logger.info(f"{timestamp} [INFO] Environment Setup finalizado com sucesso!")
-
 # display - TODO:
 display(df_sensors)
 display(df_equipment)
 display(df_logs)
+logger.info(f"{timestamp} [INFO] Environment Setup finalizado com sucesso!")
 
 # COMMAND ----------
 
