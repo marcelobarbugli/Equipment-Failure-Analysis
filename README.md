@@ -16,6 +16,7 @@ Pyspark Notebook to supply information within these questions:
 ### Dataset
 * You can find the dataset when Fork or Clone this repository
 * Files: “equipment_failure_sensors.txt”; “equipment_sensors.csv”; “equipment.json”
+* Download: https://drive.google.com/file/d/1pGiVKjN7AXNH1HZtMrFdX-t__KLD7IvW/view?usp=sharing
 
 ### Function and Job
 * TODO documentation
