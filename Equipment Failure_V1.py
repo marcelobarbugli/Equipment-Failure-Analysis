@@ -1,26 +1,33 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ## ** Equipment Failure Analysis **
-# MAGIC Pyspark Notebook to supply information within:
+# MAGIC # Equipment-Failure-Analysis
+# MAGIC * Developed by Marcelo Dozzi Barbugli
+# MAGIC * Dataset: csv, parquet, txt
+# MAGIC * Function and Job: Data Analysis and Data Transformation
+# MAGIC * Notes: Notes table
+# MAGIC __________________________________________________________________
+# MAGIC
+# MAGIC
+# MAGIC ### Equipment Failure Analysis Description
+# MAGIC Pyspark Notebook to supply information within these questions:
 # MAGIC * Total equipment failures that happened?
 # MAGIC * Which equipment name had most failures?
 # MAGIC * Average amount of failures across equipment group, ordered by the number of failures in ascending order?
 # MAGIC * Rank the sensors which present the most number of errors by equipment name in an equipment group.
 # MAGIC
-# MAGIC #### notes:
+# MAGIC ### Dataset
+# MAGIC * You can find the dataset when Fork or Clone this repository
+# MAGIC * Files: “equipment_failure_sensors.txt”; “equipment_sensors.csv”; “equipment.json”
+# MAGIC
+# MAGIC ### Function and Job
+# MAGIC * TODO documentation
+# MAGIC
+# MAGIC ### notes:
 # MAGIC | information | data | notes |
 # MAGIC |-------------|:-----------:|------------:|
-# MAGIC | Dataset used | 'equipment_sensors.csv', 'equipment.parquet' and 'equpment_failure_sensors.txt' | None |
-# MAGIC | Data paths | update path variables in order to work correctly. | None |
-# MAGIC | 
+# MAGIC | Dataset | 'equipment_sensors.csv', 'equipment.parquet' and 'equpment_failure_sensors.txt' | None |
+# MAGIC | Improvements | v2 expects improvement for better performance | 1. OOP development; 2. improve validations of each step and cache; 3. bugfix |
 # MAGIC
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
-# MAGIC #### Environment Setup
-# MAGIC <a id="environment_setup"></a>
 
 # COMMAND ----------
 
@@ -41,15 +48,17 @@ spark = SparkSession.builder \
 # Configuração do Logger para registrar informações
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Equipment Failure Analysis")
-
 # Formatação do nome do arquivo com timestamp
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 log_dir = "dbfs/FileStore/shared_uploads/mbarbugli@gmail.com"
 log_filename = f"{log_dir}/total_falhas_{timestamp}.txt"
 
-logger = logging.getLogger(f"{timestamp} [INFO] Equipment Failure Analysis - Inacializando...")
+logger = logging.getLogger(f"{timestamp} [INFO] Equipment Failure Analysis - Inicializando...")
 logger.info(f"{timestamp} [INFO] Sessão Spark iniciada.")
 
+# COMMAND ----------
+
+# DBTITLE 1,Extract
 # Ler os dados
 df_sensors = spark.read.csv("dbfs:/FileStore/equipment_sensors.csv", header=True, inferSchema=True)
 df_equipment = spark.read.parquet("dbfs:/FileStore/equipment.parquet")
@@ -67,13 +76,9 @@ df_logs = df_logs.withColumn(
 # df_logs = df_logs.join(df_sensors, "sensor_id").join(df_equipment, "equipment_id")
 logger.info(f"{timestamp} [UPDATE] O Schema: {df_logs}, foi atualizado com sucesso!")
 
-# logger.info(f"{timestamp} [INFO] Criando tabelas permanentes no metastore...")
-# # Criar tabelas permanentes no metastore
-# df_sensors.write.saveAsTable("sensors")
-# df_equipment.write.saveAsTable("equipment")
-# df_logs.write.format("csv").option("header", "false").saveAsTable("logs")
-# logger.info(f"{timestamp} [INFO] Tabelas criadas com sucesso!")
+# COMMAND ----------
 
+# DBTITLE 1,Log Setup
 log_file_path = f"dbfs:/FileStore/log_{timestamp}_equipment_failure.txt"  # TODO! Atualizar caminho.
 # Escrevendo no arquivo de log
 try:
@@ -82,204 +87,53 @@ try:
 except Exception as e:
     logger.error(f"{timestamp} [ERROR] {e}. LOG FILE WAS NOT CREATED! Please check!")
 
+
+# COMMAND ----------
+
+# DBTITLE 1,Alias and DF
+
 # Criando Alias
 df_logs_alias = df_logs.alias("logs")
 df_sensors_alias = df_sensors.alias("sensors")
 df_equipment_alias = df_equipment.alias("equipment")
 
-# display - TODO:
-display(df_sensors)
-display(df_equipment)
-display(df_logs)
+# Salvando 
+df_logs_alias.write.mode('overwrite').parquet("dbfs:/FileStore/workflow/equpment_failure_sensors_loaded.parquet")
+df_sensors_alias.write.mode('overwrite').parquet("dbfs:/FileStore/workflow/df_sensors_loaded.parquet")
+df_equipment_alias.write.mode('overwrite').parquet("dbfs:/FileStore/workflow/equipment_loaded.parquet")
+
+
+# # display - TODO:
+# display(df_sensors)
+# display(df_equipment)
+# display(df_logs)
 logger.info(f"{timestamp} [INFO] Environment Setup finalizado com sucesso!")
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### ErrorLogAnalysis
-# MAGIC <a id2="ErrorLogAnalysis"></a>
-
-# COMMAND ----------
-
-# DBTITLE 1,ErrorLogAnalysis
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-spark = SparkSession.builder.appName("ErrorLogAnalysis").getOrCreate()
-
-# Log inicial
-logger.info(f"{timestamp} [INFO] Equipment Failure Analysis - Inciando o 'ErrorLogAnalysis'")
-logger.info(f"{timestamp} [INFO] Criando tabelas: 'failures_with_equipment' e 'equipment_failure_counts'...") 
-
-# Join
-failures_with_equipment = df_logs_alias \
-    .join(df_sensors_alias, df_logs_alias["sensor_id"] == df_sensors_alias["sensor_id"]) \
-    .join(df_equipment_alias, df_sensors_alias["equipment_id"] == df_equipment_alias["equipment_id"])
-
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!") 
-logger.info(f"{timestamp} [INFO] Inciando Transformação de dados: ErrorLogAnalysis ") 
-
-# Filtrar apenas linhas com 'status' igual a 'ERROR'
-failures_with_equipment = failures_with_equipment.filter(col("status") == "ERROR")
-
-# 'count' na coluna 'name' from dataframe 'equipment'
-equipment_failure_counts = failures_with_equipment \
-    .groupBy(df_equipment_alias["name"]) \
-    .count() \
-    .orderBy(col("count").desc())
-
-# Criando dataframe equipment_failure_counts
-equipment_failure_counts = equipment_failure_counts \
-    .withColumnRenamed("name", "equipment_name") \
-    .withColumnRenamed("count", "equipment_failure_count")
-most_failures_equipment = equipment_failure_counts.first()
-logger.info(f"{timestamp} [WARNING] Equipamento com maior numero de falhas: {most_failures_equipment} ") 
-
-# Salvando a tabela no databricks.
-logger.info(f"{timestamp} [INFO] Salvando tabelas: {equipment_failure_counts}...") 
-equipment_failure_counts.write.option("overwriteSchema", "true").format("delta").mode("overwrite").saveAsTable("most_failures_equipment")
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!") 
-display(equipment_failure_counts)
-logger.info(f"{timestamp} [INFO] ErrorLogAnalysis - Finalizado com sucesso!") 
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Equipment with Most Failures
-# MAGIC <a id4="equipment_most_failures"></a>
+# DBTITLE 1,ErrorLogAnalysis Run
+# MAGIC %run /Shared/ErrorLogAnalysis
 
 # COMMAND ----------
 
 # DBTITLE 1,Equipment with Most Failures
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-spark = SparkSession.builder.appName("EquipmentWithMostFailures").getOrCreate()
-
-
-logger.info(f"{timestamp} [INFO] Iniciando Transformação de dados: Equipment with Most Failures ") 
-equipment_failures = equipment_failure_counts.groupBy("equipment_name").count()
-most_failures = equipment_failures.orderBy(col("count").desc()).limit(1)
-
-# Extrair o nome do equipamento com o maior número de falhas (em lista)
-most_failures_collect = most_failures.collect() 
-if most_failures_collect:
-    most_failures_row = most_failures_collect[0] 
-    equipment_with_most_failures = most_failures_row["equipment_name"]
-    logger.info(f"{timestamp} [INFO] Equipamento com maior número de falha: {equipment_with_most_failures}")
-else:
-    logger.info(f"{timestamp} [INFO] Nenhum dado encontrado para equipamentos com falhas.")
-
-# Verifica se 'most_failures_collect' é uma lista e transforma em dataframe
-if isinstance(most_failures_collect, list):
-    most_failures_collect = spark.createDataFrame(most_failures_collect)
-
-# Salvando a tabela no databricks.
-logger.info(f"{timestamp} [INFO] Criando tabelas: 'most_failures_collect'...") 
-most_failures_collect.write.option("overwriteSchema", "true").format("delta").mode("overwrite").saveAsTable("most_failures_collect")
-display(most_failures)
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!")
-logger.info(f"{timestamp} [INFO] Equipment with Most Failures - Finalizado com sucesso!") 
-
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Average Failures by Equipment Group
-# MAGIC <a id5="average_group"></a>
+# MAGIC %run /Shared/EquipMostFailures
+# MAGIC
 
 # COMMAND ----------
 
 # DBTITLE 1,Average Failures by Equipment Group
-from pyspark.sql import functions as F
-from pyspark.sql.window import Window
-
-logger.info(f"{timestamp} [INFO] Inciando Transformação de dados: Average Failures by Equipment Group") 
-logger.info(f"{timestamp} [INFO] Criando DataFrame...")
-
-# Criação de dataframes
-failures_with_equipment = df_logs_alias.join(
-    df_sensors_alias,
-    df_logs_alias["sensor_id"] == df_sensors_alias["sensor_id"],
-    "inner"
-).join(
-    df_equipment_alias,
-    df_sensors_alias["equipment_id"] == df_equipment_alias["equipment_id"],
-    "inner"
-)
-logger.info(f"{timestamp} [INFO] DataFrame criado com sucesso!") 
-
-# Calculo da media de falhas por Grupo de Equipamento 
-logger.info(f"{timestamp} [INFO] Inciando o calculo da media de falhas por Grupo de Equipamento") 
-equipment_failure_counts = failures_with_equipment.groupBy(
-    df_equipment_alias["equipment_id"].alias("equipment_id"),
-    "group_name"
-).agg(
-    F.count("status").alias("equipment_failure_count")
-)
-
-# Calculo total de falhas entre todos os grupos
-windowSpec = Window.partitionBy()  # Sem partition
-total_failures = F.sum("equipment_failure_count").over(windowSpec)
-
-# Calculo da porcengatem do total de falhas por grupo e criando coluna
-equipment_failure_counts = equipment_failure_counts.withColumn(
-    "failure_percent",
-    F.col("equipment_failure_count") / total_failures * 100
-)
-
-# Calculo média por 'group_name'
-avg_failures_per_group = equipment_failure_counts.groupBy("group_name").agg(
-    F.avg("equipment_failure_count").alias("avg_failures"),
-    F.avg("failure_percent").alias("avg_failure_percent")
-)
-
-# Ordenando por "'avg_failures' descending" para encontrar grupo com maior numero de falhas
-avg_failures_per_group = avg_failures_per_group.orderBy(F.desc("avg_failures"))
-
-# Salvando a tabela no databricks
-logger.info(f"{timestamp} [INFO] Criando tabelas: 'avg_failures_per_group'...") 
-avg_failures_per_group.write.option("overwriteSchema", "true").format("delta").mode("overwrite").saveAsTable("most_failureavg_failures_per_groups_collect")
-display(avg_failures_per_group)
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!")
-logger.info(f"{timestamp} [INFO] Average Failures by Equipment Group - Finalizado com sucesso!") 
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### CSV
-# MAGIC <a id6="csv"></a>
+# MAGIC %run /Shared/Average_Failures_by_EquipmentGroup
+# MAGIC
+# MAGIC
 
 # COMMAND ----------
 
 # DBTITLE 1,CSV
-# Importar a sessão Spark
-from pyspark.sql import SparkSession
+# MAGIC %run /Shared/CsvWriterShape
 
-logger.info(f"{timestamp} [INFO] Salvando Resultado em CSV: Inicializando...") 
-logger.info(f"{timestamp} [INFO] Criando DataFrame...")
-df1 = spark.table("most_failures_equipment")
-df2 = spark.table("most_failures_collect")
-df3 = spark.table("most_failureavg_failures_per_groups_collect")
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!")
-
-# DBFS (Databricks File System) onde o arquivo CSV será salvo
-output_path1 = f"dbfs:/FileStore/most_failures_equipment_{timestamp}.csv"
-output_path2 = f"dbfs:/FileStore/most_failures_collect_{timestamp}.csv"
-output_path3 = f"dbfs:/FileStore/avg_failures_per_group_{timestamp}.csv"
-logger.info(f"{timestamp} [INFO] Salvado CSV: {output_path1}, {output_path2}, {output_path3}")
-
-# Salvar o DataFrame como CSV
-df1.write.csv(path=output_path1, mode="overwrite", header=True)
-df2.write.csv(path=output_path2, mode="overwrite", header=True)
-df3.write.csv(path=output_path3, mode="overwrite", header=True)
-logger.info(f"{timestamp} [INFO] Ação realizada com sucesso!")
-
-logger.info(f"{timestamp} [INFO] CSV Saving - Finalizado com sucesso!") 
+# COMMAND ----------
 
 # Finalizando programa
 logger.info(f"{timestamp} [INFO] Finalizando o Equipment Failure - Tech Case") 
 logger.info(f"{timestamp} [INFO] Finalizando logs") 
-
